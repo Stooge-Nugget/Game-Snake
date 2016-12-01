@@ -6,6 +6,7 @@
 <script>
 
 //Snake Game
+'use strict';
 
 var GRID = 10;
 var PIXEL_SIZE = 8;
@@ -24,7 +25,7 @@ var scoreBoard;
   canvas = document.createElement("canvas");
   ctx = canvas.getContext("2d");
 
-  font = document.createElement("link"); //Could just place this into html
+  var font = document.createElement("link"); //Could just place this into html
   font.href = "https://fonts.googleapis.com/css?family=Press+Start+2P";
   font.rel = "stylesheet";
   font.id = "font";
@@ -92,7 +93,7 @@ var game = (function(){ //Define in another file, include at top. singleton
         //
         // if(move) snake.moveSnake();
 
-        for(i = 1; i < body.length; i++){
+        for(var i = 1; i < body.length; i++){
 
           if(body[i].collisionCheck(snake.getPos())){
             gameOver = true;
@@ -125,7 +126,7 @@ var game = (function(){ //Define in another file, include at top. singleton
           ctx.fillRect(wall.getPos()[0], wall.getPos()[1], wall.getWidth()-1, wall.getHeight()-1);
         });
 
-        for(i = (body.length - 1); i >= 0; i--){
+        for(var i = (body.length - 1); i >= 0; i--){
           //+1 for pixel grid offset
           var x = body[i].getPos()[0] + 1;
           var y = body[i].getPos()[1] + 1;
@@ -178,7 +179,7 @@ function Snake(x, y, length){
   var body = [];
   // body.push(new section(x, y, GRID, GRID)); //Head
 
-  for(i = 0; i < length; i++){
+  for(var i = 0; i < length; i++){
     body.push(new Section(x, y + (i * 10), GRID, GRID));
   };
 
@@ -329,6 +330,15 @@ var key = (function(){
 
     var keyPressed = {};
 
+    //Special method for snake game. Frees up direction input to only return last direction pressed.
+    //Not sure this is the cleanest solution...
+    function removeDirectionKeys(){
+      delete keyPressed[37];
+      delete keyPressed[38];
+      delete keyPressed[39];
+      delete keyPressed[40];
+    }
+
     return{
 
       LEFT : 37,
@@ -341,6 +351,7 @@ var key = (function(){
       },
 
       keyDown: function(event){
+        removeDirectionKeys();
         keyPressed[event.keyCode] = true;
       },
 
@@ -495,6 +506,8 @@ function fauxLoader(){
   var barY = (canvas.height/2) - (barH/2);
 
   if(progress < 100){
+    var textWidth;
+
     ctx.lineWidth = 10;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.strokeRect(barX - 6, barY - 6, barW + 8, barH + 12);
