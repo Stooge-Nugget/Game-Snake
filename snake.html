@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<head id="head">
+</head>
+<body id="body">
+</body>
+<script>
+
+/*
+TO DO LIST:
+Select appearance, grid, solid, hollow, striped
+Score at game over screen
+Reset function
+Score outside of play area
+Powers?
+Game mode?
+Multiplayer?
+Ignore button down if already in that direction...
+8x8 for added grid look???
+Edge collision (possible walls)
+Body/section collisions
+Distinguish head (later...)
+Add food
+Snake growth
+Score
+Game speed
+Lives
+Menu's
+Input override issue...
+FIX: Magic numbers, ugly indexing, decouple, separate files...
+Dynamic auto sizing?
+*/
+
+var GRID = 10;
+var PIXEL_SIZE = 8;
+
+var canvas;
+var ctx;
+var game;
+var input;
+var gameOver;
+var scoreBoard;
+
+
+(function setup(){
+  var body = document.getElementById("body");
+  var head = document.getElementById("head");
+  canvas = document.createElement("canvas");
+  ctx = canvas.getContext("2d");
+
+  font = document.createElement("link"); //Could just place this into html
+  font.href = "https://fonts.googleapis.com/css?family=Press+Start+2P";
+  font.rel = "stylesheet";
+  font.id = "font";
+
+  canvas.width = 840;
+  canvas.height = 480;
+  canvas.style = "background: #c5e90d; margin: auto; display: block";
+
+  body.appendChild(canvas);
+  head.appendChild(font);
+})();//IIFE
+
+//Game class, has members to do with game objects
+var game = (function(){ //Define in another file, include at top. singleton
+
+  var instance;
+
+  function init(){
+
+    gameOver = false;
+    scoreBoard = [];
+    var score = 0;
+    var centreX = canvas.width/2 - GRID;
+    var centreY = canvas.height/2 - GRID;
+    var walls = initBorders();
+    var snake = new Snake(centreX, centreY, 3);
+    var foodX = randomRangeGrid(canvas.width - 20, 20, 20);
+    var foodY = randomRangeGrid(canvas.height - 20, 60, 20);
+    var food = new Section(foodX, foodY, GRID, GRID);
+    var body = snake.getBody();
+
+    //If scores are available, load them, otherwise use defaults...
+    //if scores
+    //loadScores();
+    //else
+    //setScores(); //Should only happen on first play...
+
+    return {
+
+      update : function(){
+
+        //Add AI here.
+        snake.changeDirection(checkInput());
+        snake.moveSnake();
+
+        walls.forEach(function(wall){
+          var simPos = snake.stepForward();
+
+          if(wall.collisionCheck(simPos)){ //Change to 'getPos' to go into wall
+            gameOver = true;
+          }
+
+        });
+
+        // var move = true;
+        //
+        // walls.forEach(function(wall){ //Method to stop snake and not end game
+        //   var simPos = snake.stepForward();
+        //
+        //   if(wall.collisionCheck(simPos)){
+        //     move = false;
+        //   }
+        //
+        // });
+        //
+        // if(move) snake.moveSnake();
+
+        for(i = 1; i < body.length; i++){
+
+          if(body[i].collisionCheck(snake.getPos())){
+            gameOver = true;
+          }
+
+        };
+
+        if(food.collisionCheck(snake.getPos())){ //Food collides
+          score++;
+          snake.grow();
+          foodX = randomRangeGrid(canvas.width - 20, 20, 20);
+          foodY = randomRangeGrid(canvas.height - 20, 60, 20);
+          food.setX(foodX);
+          food.setY(foodY);
+          //Reset food location
+        }
+
+      },
+
+      draw : function(){
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        //Text
+        ctx.font = "16px \'Press Start 2P\', cursive";
+        ctx.fillText("SCORE: " + score, 20, 40);
+
+        //Sections
+        walls.forEach(function(wall){
+          ctx.fillRect(wall.getPos()[0], wall.getPos()[1], wall.getWidth()-1, wall.getHeight()-1);
+        });
+
+        for(i = (body.length - 1); i >= 0; i--){
+          //+1 for pixel grid offset
+          var x = body[i].getPos()[0] + 1;
+          var y = body[i].getPos()[1] + 1;
+          ctx.fillRect(x, y, PIXEL_SIZE, PIXEL_SIZE);
+
+        }
+
+        ctx.fillRect(food.getPos()[0] + 1, food.getPos()[1] + 1, PIXEL_SIZE, PIXEL_SIZE);
+
+      }
+
+    };
+
+  };
+
+  return {
+
+    getInstance: function(){
+
+      if( !instance ){
+        instance = init();
+      }
+
+      return instance;
+    }
+
+  };
+
+})();
+
+
+function initBorders(){ //Possible to use just x and y for point to point with set width, and for loop to create array...
+  var width = canvas.width;
+  var height = canvas.height;
+  var walls = [];
+
+  walls[0] = new Section(0, 0 , GRID, height);
+  walls[1] = new Section(0, 0 , width, GRID);
+  walls[2] = new Section(width - GRID, 0 , GRID, height);
+  walls[3] = new Section(0, height - GRID , width, GRID);
+
+  return walls;
+}
+
+
+//Player controlled snake
+function Snake(x, y, length){
+  var xDir = 0;
+  var yDir = -10;
+  var body = [];
+  // body.push(new section(x, y, GRID, GRID)); //Head
+
+  for(i = 0; i < length; i++){
+    body.push(new Section(x, y + (i * 10), GRID, GRID));
+  };
+
+  //Returns pos of snakes head
+  this.getPos = function(){
+    return body[0].getPos();
+  };
+
+  this.getBody = function(){
+    return body;
+  };
+
+  this.addSection = function(x, y, width, height){ //Redundant?
+    body.push(new Section(x, y, width, height));
+  };
+
+  this.grow = function(){
+    var lastSection = body[body.length - 1];
+    var x = lastSection.getPos()[0];
+    var y = lastSection.getPos()[1];
+
+    body.push(new Section(x, y, GRID, GRID));
+  };
+
+  this.changeDirection = function(direction){
+
+    if(direction){
+      switch(direction){
+        case "left":
+          if(xDir == 0){
+            yDir = 0;
+            xDir = -GRID;
+          }
+        break;
+        case "right":
+          if(xDir == 0){
+            yDir = 0;
+            xDir = GRID;
+          }
+        break;
+        case "up":
+          if(yDir == 0){
+            yDir = -GRID;
+            xDir = 0;
+          }
+        break;
+        case "down":
+          if(yDir == 0){
+            yDir = GRID;
+            xDir = 0;
+          }
+        break;
+      }
+
+      return true;
+    }
+
+    return false;
+  };
+
+  this.moveSnake = function(){
+
+    for(i = (body.length - 1); i >= 1; i--){
+      var newPos = body[i - 1].getPos();
+
+      body[i].setX(newPos[0]);
+      body[i].setY(newPos[1]);
+    }
+
+    var snakePos = body[0].getPos(); //Head moves separate to the body...
+
+    body[0].setX(snakePos[0] + xDir);
+    body[0].setY(snakePos[1] + yDir);
+
+  };
+
+  //Simulates one step forward
+  this.stepForward = function(){
+    var snakePos = body[0].getPos();
+    var simPos = [];
+
+    simPos[0] = snakePos[0] + xDir;
+    simPos[1] = snakePos[1] + yDir;
+
+    return simPos;
+  }
+
+};
+
+
+//Section for game entities
+function Section(x, y, width, height){
+  var xPos = x;
+  var yPos = y;
+
+  this.getPos = function(){
+    return [xPos, yPos];
+  };
+
+  this.setX = function(x){
+    xPos = x;
+  };
+
+  this.setY = function(y){
+    yPos = y;
+  };
+
+  this.getWidth = function(){
+    return width;
+  };
+
+  this.getHeight = function(){
+    return height;
+  };
+
+  this.collisionCheck = function(itemPos){
+    var itemX = itemPos[0];
+    var itemY = itemPos[1];
+
+    if((itemX + GRID > xPos) && (itemX < xPos + width)){//Swap out 'GRID'
+      if((itemY + GRID > yPos) && (itemY < yPos + height)){
+        return true;
+      }
+    }
+
+    //Condensed version
+    // if(itemX < xPos + GRID &&
+    //   itemX + GRID > xPos &&
+    //   itemY < yPos + GRID &&
+    //   GRID + itemY > yPos){
+    //
+    //   return true;
+    //
+    // }
+
+    return false;
+  };
+
+}
+
+
+//Key press handler
+var key = (function(){
+
+  var instance;
+
+  function init(){
+
+    var keyPressed = {};
+
+    return{
+
+      LEFT : 37,
+      UP : 38,
+      RIGHT : 39,
+      DOWN : 40,
+
+      isDown: function(keyCode){
+        return keyPressed[keyCode];
+      },
+
+      keyDown: function(event){
+        keyPressed[event.keyCode] = true;
+      },
+
+      keyUp: function(event){
+        delete keyPressed[event.keyCode];
+      },
+
+      pressCount: function(){
+        return Object.keys(keyPressed).length;
+      }
+
+    };
+
+  };
+
+  return {
+    getInstance: function(){
+
+      if(!instance){
+        instance = init();
+      }
+
+      return instance;
+    }
+
+  };
+
+})();
+
+
+var time = Date.now();
+var tick = Date.now();
+var fps = 0;
+var lastFrameTimeMs = 0;
+var maxFPS = 30;
+var delta = 0;
+
+game = game.getInstance();
+input = key.getInstance();
+window.addEventListener("keyup", input.keyUp);
+window.addEventListener("keydown", input.keyDown);
+
+function mainLoop(timeStamp){
+  // var delta = (Date.now() - time)/1000;
+
+  if(gameOver){
+    requestAnimationFrame(gameOverScreen);
+    return;
+  }
+  else if(timeStamp < lastFrameTimeMs + (1000 / maxFPS)){ //FPS limit
+    requestAnimationFrame(mainLoop);
+    return;
+  }
+
+  delta += timeStamp - lastFrameTimeMs;
+  lastFrameTimeMs = timeStamp;
+  // time = Date.now();
+  // fps = 1/delta;
+
+  // if((Date.now() - tick) >= 100){
+  //   // game.update();
+  //   // game.draw();
+  //   tick = Date.now()
+  // }
+
+  // while(delta >= (1000/60)){ //Update throttle...
+  //   game.update();
+  //   delta -= (1000/60);
+  // }
+  // game.update();//Update outside of fps
+
+  game.update();
+  game.draw();
+
+  requestAnimationFrame(mainLoop);
+};
+
+
+//Simple input checking function
+function checkInput(){
+  //Use switch + last arrow key??? because key override, instead of just last pressed...
+  if(input.isDown(input.LEFT)) return "left";
+  else if(input.isDown(input.RIGHT)) return "right";
+  else if(input.isDown(input.UP)) return "up";
+  else if(input.isDown(input.DOWN)) return "down";
+
+};
+
+
+function randomRangeGrid(max, min, inc){
+  max = Math.floor(max);
+  min = Math.ceil(min);
+  return Math.floor(Math.random() * (max - min) / inc) * inc + min;
+};
+
+
+function splash(){//Hmmmm...
+
+  var text = "- SNAKE -"
+  var textWidth;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.font = "72px \'Press Start 2P\', cursive, Arial";
+  textWidth = ctx.measureText(text).width;
+  ctx.fillText(text, (canvas.width/2) - (textWidth/2), (canvas.height/2) + (72/2));
+
+  text = "PRESS ANY BUTTON";
+  ctx.font = "16px \'Press Start 2P\', cursive, Arial";
+  textWidth = ctx.measureText(text).width;
+  ctx.fillText(text, (canvas.width/2) - (textWidth/2), (canvas.height/2) + 130);
+
+
+  if(input.isDown(32) || (input.pressCount() >= 1)){ //Press 'SPACE' or 'ANY BUTTON'
+    //Ready...
+    // game.draw();
+    // setTimeout(function(){requestAnimationFrame(mainLoop);}, 1000);// Delay for ready up
+    requestAnimationFrame(mainLoop);
+    return;
+  }
+
+  requestAnimationFrame(splash);
+
+};
+
+
+function gameOverScreen(){
+
+  var text = "GAME OVER"
+  var textWidth;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.font = "72px \'Press Start 2P\', cursive, Arial";
+  textWidth = ctx.measureText(text).width;
+  ctx.fillText(text, (canvas.width/2) - (textWidth/2), (canvas.height/2) + (72/2));
+
+  if(input.isDown(32) || (input.pressCount() >= 1)){ //Press 'SPACE' or 'ANY BUTTON'
+    // gameOver = false; //Need a proper reset
+    requestAnimationFrame(mainLoop);
+    return;
+  }
+
+  requestAnimationFrame(gameOverScreen);
+};
+
+
+var progress = 0;
+
+function fauxLoader(){
+  var barW = 400;
+  var barH = 50;
+  var barX = (canvas.width/2) - (barW/2);
+  var barY = (canvas.height/2) - (barH/2);
+
+  if(progress < 100){
+    ctx.lineWidth = 10;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeRect(barX - 6, barY - 6, barW + 8, barH + 12);
+    ctx.fillRect(barX, barY, (progress * 4), barH);
+
+    ctx.fillStyle = "white";
+    ctx.font = "16px \'Press Start 2P\', cursive, Arial";
+    textWidth = ctx.measureText(progress).width;
+    ctx.fillText(progress, (canvas.width/2) - (textWidth/2), (canvas.height/2) + (16/2));
+    ctx.fillStyle = "black";
+
+    progress += 2;
+    requestAnimationFrame(fauxLoader);
+    return;
+  }
+
+  requestAnimationFrame(splash);
+}
+
+
+requestAnimationFrame(fauxLoader);
+// requestAnimationFrame(splash);
+// mainLoop();
+
+</script>
+
+</html>
