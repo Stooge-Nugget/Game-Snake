@@ -351,7 +351,7 @@ var key = (function(){
       },
 
       keyDown: function(event){
-        removeDirectionKeys();
+        removeDirectionKeys(); //Need to clean this up...
         keyPressed[event.keyCode] = true;
       },
 
@@ -388,6 +388,8 @@ var fps = 0;
 var lastFrameTimeMs = 0;
 var maxFPS = 30;
 var delta = 0;
+var paused = false;
+var toggle = false;
 
 game = game.getInstance();
 input = key.getInstance();
@@ -401,7 +403,7 @@ function mainLoop(timeStamp){
     requestAnimationFrame(gameOverScreen);
     return;
   }
-  else if(timeStamp < lastFrameTimeMs + (1000 / maxFPS)){ //FPS limit
+  else if(timeStamp < lastFrameTimeMs + (1000 / maxFPS)){ //FPS limit, basically skips update and draw
     requestAnimationFrame(mainLoop);
     return;
   }
@@ -422,11 +424,25 @@ function mainLoop(timeStamp){
   //   delta -= (1000/60);
   // }
   // game.update();//Update outside of fps
+  if(input.isDown(32) && toggle){ //Need to fix, keyrepeat issues...
+    paused = !paused;
+    toggle = false;
+  }
+  else if(!input.isDown(32) && !toggle){
+    toggle = true;
+  }
 
-  game.update();
-  game.draw();
+  if(!paused){
+    game.update();
+  }
+  else{
+    console.log("PAUSED");
+  }
+  // game.update();
+  game.draw(); //I may put draw with update when paused...
 
   requestAnimationFrame(mainLoop);
+
 };
 
 

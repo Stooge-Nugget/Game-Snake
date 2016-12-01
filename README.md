@@ -10,10 +10,10 @@ No external libraries are used.
 * Powers?
 * Game modes?
 * Multiplayer?
-* Ignore button down, if already going that direction...
 * Distinguish head (maybe...)
 * Game speed
 * Lives
 * Menu's
-* Key press override issue...
 * FIX: Magic numbers, ugly indexing, decouple, separate files...
+* Snake death animation, then 'game over'
+* Pause screen
