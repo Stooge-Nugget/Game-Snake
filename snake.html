@@ -65,6 +65,18 @@ var game = (function(){ //Define in another file, include at top. singleton
 
     return {
 
+      getScore : function(){
+        return score;
+      },
+
+      restart : function(){ //Might also make a dedicated initlizer/start function
+        score = 0;
+        snake = new Snake(centreX, centreY, 3);
+        body = snake.getBody();
+        //food.relocate();
+        gameOver = false;
+      },
+
       update : function(){
 
         //Add AI here.
@@ -104,7 +116,7 @@ var game = (function(){ //Define in another file, include at top. singleton
         if(food.collisionCheck(snake.getPos())){ //Food collides
           score++;
           snake.grow();
-          foodX = randomRangeGrid(canvas.width - 20, 20, 20);
+          foodX = randomRangeGrid(canvas.width - 20, 20, 20); //!!!Function
           foodY = randomRangeGrid(canvas.height - 20, 60, 20);
           food.setX(foodX);
           food.setY(foodY);
@@ -182,6 +194,10 @@ function Snake(x, y, length){
   for(var i = 0; i < length; i++){
     body.push(new Section(x, y + (i * 10), GRID, GRID));
   };
+
+  // this.reset = function(){ //Don't think I need this
+  //
+  // };
 
   //Returns pos of snakes head
   this.getPos = function(){
@@ -498,13 +514,18 @@ function gameOverScreen(){
   var text = "GAME OVER"
   var textWidth;
 
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.clearRect(0, 0, canvas.width, canvas.height); //!!! Make a text output function.
   ctx.font = "72px \'Press Start 2P\', cursive, Arial";
   textWidth = ctx.measureText(text).width;
   ctx.fillText(text, (canvas.width/2) - (textWidth/2), (canvas.height/2) + (72/2));
 
+  ctx.font = "24px \'Press Start 2P\', cursive, Arial"; //Looks alright...
+  text = "SCORE: " + game.getScore();
+  textWidth = ctx.measureText(text).width;
+  ctx.fillText(text, (canvas.width/2) - (textWidth/2), (canvas.height/2) + 125)
+
   if(input.isDown(32) || (input.pressCount() >= 1)){ //Press 'SPACE' or 'ANY BUTTON'
-    // gameOver = false; //Need a proper reset
+    game.restart();
     requestAnimationFrame(mainLoop);
     return;
   }
